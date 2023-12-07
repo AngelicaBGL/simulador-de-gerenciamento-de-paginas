@@ -12,31 +12,32 @@ class Memoria:
         self.capacidade = capacidade
         self.paginas = []
         self.operacoes_contador = 0
-        self.limpar_bits_referencia_intervalo = 0  # Intervalo padrão para limpar bits de referência
-    
-    def configurar_intervalo_limpeza_bits(self, intervalo):
-        self.limpar_bits_referencia_intervalo = intervalo
-    
+        self.limpar_bits_referencia_intervalo = 5  # Intervalo padrão para limpar bits de referência
+
     def adicionar_pagina(self, pagina):
         if len(self.paginas) < self.capacidade:
             self.paginas.append(pagina)
         else:
-            pagina_referenciada = any(pagina.bit_referencia == 1 for pagina in self.paginas)
-
-            # Limpar bits de referência apenas das páginas referenciadas
-            for pagina in self.paginas:
-                if pagina.bit_referencia == 1:
-                    pagina.bit_referencia = 0
-
-            # Adicionar a nova página
-            self.paginas.append(pagina)
-
-            # Se nenhuma página foi referenciada, manter o bit de referência da página mais antiga
-            if not pagina_referenciada:
+            while True:
                 pagina_mais_antiga = self.paginas.pop(0)
-                pagina_mais_antiga.bit_referencia = 1
-                self.paginas.append(pagina_mais_antiga)
-            
+                if pagina_mais_antiga.bit_referencia == 0:
+                    break
+                else:
+                    pagina_mais_antiga.bit_referencia = 0
+                    self.paginas.append(pagina_mais_antiga)
+
+            self.paginas.append(pagina)
+            self.paginas[-1].bit_referencia = 1
+
+        self.operacoes_contador += 1
+        if self.operacoes_contador >= self.limpar_bits_referencia_intervalo:
+            self.limpar_bits_referencia()
+            self.operacoes_contador = 0
+
+    def limpar_bits_referencia(self):
+        for pagina in self.paginas:
+            pagina.bit_referencia = 0
+
     def exibir_status_memoria(self):
         status = ""
         for pagina in self.paginas:
@@ -46,20 +47,16 @@ class Memoria:
 class AlgoritmoSegundaChance:
     @staticmethod
     def substituir_pagina(memoria, nova_pagina):
-        # Verifica se há páginas referenciadas
-        paginas_referenciadas = [pagina for pagina in memoria.paginas if pagina.bit_referencia == 1]
+        while True:
+            pagina_mais_antiga = memoria.paginas.pop(0)
+            if pagina_mais_antiga.bit_referencia == 0:
+                break
+            else:
+                pagina_mais_antiga.bit_referencia = 0
+                memoria.paginas.append(pagina_mais_antiga)
 
-        if paginas_referenciadas:
-            # Move as páginas referenciadas para o final da fila
-            memoria.paginas = [pagina for pagina in memoria.paginas if pagina.bit_referencia == 0]
-            memoria.paginas.extend(paginas_referenciadas)
-        else:
-            # Se nenhuma página foi referenciada, substitui a primeira da fila
-            memoria.paginas.pop(0)
-
-        # Adiciona a nova página no final
         memoria.paginas.append(nova_pagina)
-    
+
 class SimuladorGerenciadorPagina:
     #interface grafica
     def __init__(self, mestre):
@@ -69,7 +66,7 @@ class SimuladorGerenciadorPagina:
 
         self.memoria = None
         self.algoritmo_segunda_chance = AlgoritmoSegundaChance()
-        
+
         # Componentes da interface
         self.rotulo = tk.Label(mestre, text="Selecione um arquivo:",bg='#4B0082')
         self.rotulo.pack()
@@ -133,12 +130,12 @@ class SimuladorGerenciadorPagina:
 
         intervalo_limpeza_bits = int(self.configurar_intervalo_entry.get())
         self.memoria.limpar_bits_referencia_intervalo = intervalo_limpeza_bits
-        self.memoria.configurar_intervalo_limpeza_bits(intervalo_limpeza_bits)
+
     def iniciar_simulacao(self):
         if not self.requisicoes_pagina:
             self.exibicao_texto.insert(tk.END, "Carregue um arquivo antes de simular.\n")
             return
-        #self.configurar_intervalo()
+
         self.configurar_memoria()
 
         for id_pagina in self.requisicoes_pagina:
